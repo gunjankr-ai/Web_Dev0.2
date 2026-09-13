@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniCalc - Advanced Web Calculator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles & glassmorphic backdrops */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .calc-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .calc-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.6);
+        }
+
+        /* Smooth slide-in drawer */
+        .drawer-slide {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300 flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header / Navbar -->
+    <header class="w-full max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                <i class="fa-solid font-bold fa-calculator text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-300">OmniCalc</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Smart Precision Calculator</p>
+            </div>
+        </div>
+
+        <!-- Mode Selector & Controls -->
+        <div class="flex items-center gap-2 bg-white/60 dark:bg-slate-900/60 p-1.5 rounded-2xl backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 shadow-sm">
+            <button id="mode-calc-btn" onclick="switchMainTab('calc')" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 text-white shadow-sm transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-calculator"></i>
+                <span>Calculator</span>
+            </button>
+            <button id="mode-converter-btn" onclick="switchMainTab('converter')" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                <span>Converter</span>
+            </button>
+            <div class="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+            <button id="theme-toggle-btn" onclick="toggleTheme()" class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors" title="Toggle Theme">
+                <i class="fa-solid fa-moon text-sm dark:hidden"></i>
+                <i class="fa-solid fa-sun text-sm hidden dark:block"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="w-full max-w-5xl mx-auto px-4 flex-1 flex flex-col justify-center items-center py-4">
+        
+        <!-- CALCULATOR SECTION -->
+        <div id="calculator-section" class="w-full max-w-md sm:max-w-lg md:max-w-4xl transition-all duration-300">
+            <div class="glass-panel rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6">
+                
+                <!-- Calculator Core -->
+                <div class="flex-1 flex flex-col">
+                    <!-- Display Header Tools -->
+                    <div class="flex items-center justify-between mb-3 text-xs text-slate-500 dark:text-slate-400">
+                        <div class="flex items-center gap-3">
+                            <button id="scientific-toggle" onclick="toggleScientific()" class="flex items-center gap-1 font-semibold hover:text-blue-500 transition-colors">
+                                <i class="fa-solid fa-flask text-xs"></i>
+                                <span id="scientific-toggle-label">Scientific</span>
+                            </button>
+                            <span id="angle-unit-btn" onclick="toggleAngleUnit()" class="cursor-pointer bg-slate-200/60 dark:bg-slate-800/60 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 transition-colors">DEG</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSound()" id="sound-btn" class="hover:text-blue-500 transition-colors p-1" title="Toggle Audio Feedback">
+                                <i class="fa-solid fa-volume-high text-xs"></i>
+                            </button>
+                            <button onclick="copyToClipboard()" class="hover:text-blue-500 transition-colors p-1 flex items-center gap-1" title="Copy Result">
+                                <i class="fa-solid fa-copy text-xs"></i>
+                                <span id="copy-toast" class="hidden text-[10px] text-green-500 font-semibold">Copied!</span>
+                            </button>
+                            <button onclick="toggleHistoryDrawer()" class="md:hidden hover:text-blue-500 transition-colors p-1" title="History">
+                                <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Output Display -->
+                    <div class="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-4 mb-4 shadow-inner border border-slate-200/60 dark:border-slate-800/60 text-right flex flex-col justify-between min-h-[110px] sm:min-h-[130px] overflow-hidden">
+                        <!-- Expression History Display -->
+                        <div id="expression-display" class="font-mono text-sm sm:text-base text-slate-400 dark:text-slate-500 min-h-[1.5rem] break-all overflow-x-auto text-right"></div>
+                        <!-- Current Value Display -->
+                        <div id="main-display" class="font-mono text-3xl sm:text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight break-all overflow-x-auto transition-all">0</div>
+                    </div>
+
+                    <!-- Memory Bar -->
+                    <div class="grid grid-cols-5 gap-1.5 mb-3 text-xs font-semibold">
+                        <button onclick="memoryClear()" class="py-1.5 rounded-lg bg-slate-200/40 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">MC</button>
+                        <button onclick="memoryRecall()" class="py-1.5 rounded-lg bg-slate-200/40 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">MR</button>
+                        <button onclick="memoryAdd()" class="py-1.5 rounded-lg bg-slate-200/40 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">M+</button>
+                        <button onclick="memorySubtract()" class="py-1.5 rounded-lg bg-slate-200/40 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">M-</button>
+                        <button id="memory-indicator" class="py-1.5 rounded-lg bg-slate-200/20 dark:bg-slate-800/20 text-slate-400 dark:text-slate-600 font-mono text-[10px] cursor-default flex items-center justify-center">MEM: OFF</button>
+                    </div>
+
+                    <!-- Keypad Container -->
+                    <div class="flex flex-col gap-2">
+                        <!-- Scientific Secondary Grid (Toggleable on Mobile, side/top on Desktop) -->
+                        <div id="scientific-grid" class="grid grid-cols-5 gap-2 hidden mb-2 transition-all">
+                            <button onclick="appendFunction('sin')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">sin</button>
+                            <button onclick="appendFunction('cos')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">cos</button>
+                            <button onclick="appendFunction('tan')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">tan</button>
+                            <button onclick="appendFunction('log')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">log</button>
+                            <button onclick="appendFunction('ln')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">ln</button>
+
+                            <button onclick="appendValue('π')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">π</button>
+                            <button onclick="appendValue('e')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">e</button>
+                            <button onclick="appendOperator('^')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">x^y</button>
+                            <button onclick="appendFunction('sqrt')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">√</button>
+                            <button onclick="appendFunction('fact')" class="calc-btn p-3 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 text-xs font-semibold">x!</button>
+                        </div>
+
+                        <!-- Main Standard Grid -->
+                        <div class="grid grid-cols-4 gap-2 text-base font-semibold">
+                            <!-- Row 1 -->
+                            <button onclick="clearAll()" class="calc-btn p-4 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 dark:hover:bg-rose-500/30">C</button>
+                            <button onclick="appendParenthesis()" class="calc-btn p-4 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70 hover:bg-slate-300/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200">( )</button>
+                            <button onclick="appendOperator('%')" class="calc-btn p-4 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70 hover:bg-slate-300/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200">%</button>
+                            <button onclick="appendOperator('÷')" class="calc-btn p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 dark:hover:bg-blue-500/30 text-lg">÷</button>
+
+                            <!-- Row 2 -->
+                            <button onclick="appendValue('7')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">7</button>
+                            <button onclick="appendValue('8')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">8</button>
+                            <button onclick="appendValue('9')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">9</button>
+                            <button onclick="appendOperator('×')" class="calc-btn p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 dark:hover:bg-blue-500/30 text-lg">×</button>
+
+                            <!-- Row 3 -->
+                            <button onclick="appendValue('4')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">4</button>
+                            <button onclick="appendValue('5')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">5</button>
+                            <button onclick="appendValue('6')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">6</button>
+                            <button onclick="appendOperator('-')" class="calc-btn p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 dark:hover:bg-blue-500/30 text-lg">-</button>
+
+                            <!-- Row 4 -->
+                            <button onclick="appendValue('1')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">1</button>
+                            <button onclick="appendValue('2')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">2</button>
+                            <button onclick="appendValue('3')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">3</button>
+                            <button onclick="appendOperator('+')" class="calc-btn p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 dark:hover:bg-blue-500/30 text-lg">+</button>
+
+                            <!-- Row 5 -->
+                            <button onclick="toggleSign()" class="calc-btn p-4 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70 hover:bg-slate-300/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200">±</button>
+                            <button onclick="appendValue('0')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">0</button>
+                            <button onclick="appendValue('.')" class="calc-btn p-4 rounded-2xl bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/80 shadow-sm border border-slate-200/40 dark:border-slate-700/40">.</button>
+                            <button onclick="backspace()" class="calc-btn p-4 rounded-2xl bg-slate-200/70 dark:bg-slate-800/70 hover:bg-slate-300/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200 flex items-center justify-center">
+                                <i class="fa-solid fa-delete-left text-base"></i>
+                            </button>
+                        </div>
+
+                        <!-- Equal Row -->
+                        <button onclick="calculate()" class="calc-btn w-full mt-2 p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xl shadow-lg shadow-blue-500/30 active:shadow-none transition-all">
+                            =
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Drawer / Sidebar for Desktop -->
+                <div id="history-panel" class="hidden md:flex flex-col w-72 border-l border-slate-200/60 dark:border-slate-800/60 pl-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>History</span>
+                        </div>
+                        <button onclick="clearHistory()" class="text-xs text-rose-500 hover:underline">Clear</button>
+                    </div>
+
+                    <div id="history-list" class="flex-1 overflow-y-auto max-h-[460px] pr-2 space-y-3">
+                        <div class="text-center text-xs text-slate-400 dark:text-slate-600 py-8">No history yet</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- UNIT CONVERTER SECTION -->
+        <div id="converter-section" class="w-full max-w-md sm:max-w-lg hidden transition-all duration-300">
+            <div class="glass-panel rounded-3xl p-6 shadow-2xl">
+                <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-blue-500"></i>
+                    <span>Unit Converter</span>
+                </h2>
+
+                <!-- Category Tabs -->
+                <div class="grid grid-cols-4 gap-1 bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl mb-6 text-xs font-semibold">
+                    <button onclick="selectConverterCategory('length')" id="cat-length" class="cat-tab py-2 rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400">Length</button>
+                    <button onclick="selectConverterCategory('weight')" id="cat-weight" class="cat-tab py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900">Weight</button>
+                    <button onclick="selectConverterCategory('temp')" id="cat-temp" class="cat-tab py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900">Temp</button>
+                    <button onclick="selectConverterCategory('data')" id="cat-data" class="cat-tab py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900">Data</button>
+                </div>
+
+                <!-- From Unit Input -->
+                <div class="space-y-4">
+                    <div class="bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">From</label>
+                        <div class="flex items-center gap-3">
+                            <input type="number" id="converter-from-input" value="1" oninput="convertUnits()" class="w-full bg-transparent text-2xl font-mono font-bold text-slate-800 dark:text-slate-100 focus:outline-none">
+                            <select id="converter-from-unit" onchange="convertUnits()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none border border-slate-200 dark:border-slate-700">
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center -my-2">
+                        <button onclick="swapConverterUnits()" class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg hover:rotate-180 transition-transform duration-300">
+                            <i class="fa-solid fa-arrows-up-down text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- To Unit Input -->
+                    <div class="bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">To</label>
+                        <div class="flex items-center gap-3">
+                            <input type="number" id="converter-to-input" readonly class="w-full bg-transparent text-2xl font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none">
+                            <select id="converter-to-unit" onchange="convertUnits()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none border border-slate-200 dark:border-slate-700">
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile History Drawer Overlay -->
+    <div id="mobile-drawer-overlay" onclick="toggleHistoryDrawer()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+    
+    <div id="mobile-history-drawer" class="fixed top-0 right-0 bottom-0 w-80 bg-white dark:bg-slate-900 shadow-2xl z-50 p-6 flex flex-col transform translate-x-full drawer-slide">
+        <div class="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-bold">
+                <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
+                <span>Calculation History</span>
+            </div>
+            <button onclick="toggleHistoryDrawer()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div id="mobile-history-list" class="flex-1 overflow-y-auto space-y-3">
+            <div class="text-center text-xs text-slate-400 dark:text-slate-600 py-8">No history yet</div>
+        </div>
+
+        <button onclick="clearHistory()" class="w-full py-2.5 rounded-xl bg-rose-500/10 text-rose-600 font-semibold text-sm hover:bg-rose-500/20 transition-colors mt-4">
+            Clear History
+        </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 text-center text-xs text-slate-400 dark:text-slate-600">
+        OmniCalc &copy; 2026 • Modern Responsive Web App
+    </footer>
+
+    <script>
+        // State variables
+        let currentInput = '0';
+        let expression = '';
+        let history = [];
+        let memory = 0;
+        let isScientificOpen = false;
+        let angleUnit = 'DEG'; // 'DEG' or 'RAD'
+        let soundEnabled = true;
+
+        // Converter Configuration & State
+        let currentConverterCat = 'length';
+        const unitData = {
+            length: {
+                units: ['Meters (m)', 'Kilometers (km)', 'Centimeters (cm)', 'Feet (ft)', 'Inches (in)', 'Miles (mi)'],
+                rates: {
+                    'Meters (m)': 1,
+                    'Kilometers (km)': 0.001,
+                    'Centimeters (cm)': 100,
+                    'Feet (ft)': 3.28084,
+                    'Inches (in)': 39.3701,
+                    'Miles (mi)': 0.000621371
+                }
+            },
+            weight: {
+                units: ['Kilograms (kg)', 'Grams (g)', 'Pounds (lbs)', 'Ounces (oz)'],
+                rates: {
+                    'Kilograms (kg)': 1,
+                    'Grams (g)': 1000,
+                    'Pounds (lbs)': 2.20462,
+                    'Ounces (oz)': 35.274
+                }
+            },
+            temp: {
+                units: ['Celsius (°C)', 'Fahrenheit (°F)', 'Kelvin (K)']
+            },
+            data: {
+                units: ['Bytes (B)', 'Kilobytes (KB)', 'Megabytes (MB)', 'Gigabytes (GB)', 'Terabytes (TB)'],
+                rates: {
+                    'Bytes (B)': 1073741824,
+                    'Kilobytes (KB)': 1048576,
+                    'Megabytes (MB)': 1024,
+                    'Gigabytes (GB)': 1,
+                    'Terabytes (TB)': 0.0009765625
+                }
+            }
+        };
+
+        // Web Audio API Synth Sound Effect
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(freq = 600, duration = 0.04) {
+            if (!soundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // Toggle Sound Feedback
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('sound-btn');
+            btn.innerHTML = soundEnabled ? '<i class="fa-solid fa-volume-high text-xs"></i>' : '<i class="fa-solid fa-volume-xmark text-xs text-rose-500"></i>';
+        }
+
+        // Update display elements
+        function updateDisplay() {
+            const mainDisp = document.getElementById('main-display');
+            const expDisp = document.getElementById('expression-display');
+
+            // Format numbers with commas if purely digital
+            let formattedInput = currentInput;
+            if (!isNaN(currentInput) && currentInput.trim() !== '' && !currentInput.includes('e')) {
+                const parts = currentInput.split('.');
+                parts[0] = Number(parts[0]).toLocaleString('en-US');
+                formattedInput = parts.join('.');
+            }
+
+            mainDisp.textContent = formattedInput || '0';
+            expDisp.textContent = expression;
+            
+            // Font auto scaling
+            if (formattedInput.length > 12) {
+                mainDisp.classList.replace('text-3xl', 'text-xl');
+                mainDisp.classList.replace('text-4xl', 'text-2xl');
+                mainDisp.classList.replace('text-5xl', 'text-3xl');
+            } else {
+                mainDisp.classList.replace('text-xl', 'text-3xl');
+                mainDisp.classList.replace('text-2xl', 'text-4xl');
+                mainDisp.classList.replace('text-3xl', 'text-5xl');
+            }
+        }
+
+        function appendValue(val) {
+            playBeep(700);
+            if (currentInput === '0' || currentInput === 'Error') {
+                currentInput = val;
+            } else {
+                currentInput += val;
+            }
+            updateDisplay();
+        }
+
+        function appendOperator(op) {
+            playBeep(500);
+            if (currentInput === 'Error') return;
+            
+            expression += `${currentInput} ${op} `;
+            currentInput = '0';
+            updateDisplay();
+        }
+
+        function appendParenthesis() {
+            playBeep(550);
+            const openCount = (expression.match(/\(/g) || []).length;
+            const closeCount = (expression.match(/\)/g) || []).length;
+
+            if (openCount > closeCount && currentInput !== '0') {
+                expression += `${currentInput} ) `;
+                currentInput = '0';
+            } else {
+                expression += '( ';
+            }
+            updateDisplay();
+        }
+
+        function appendFunction(fn) {
+            playBeep(650);
+            if (currentInput === 'Error') return;
+
+            if (fn === 'sqrt') {
+                expression += `sqrt(${currentInput}) `;
+            } else if (fn === 'fact') {
+                expression += `fact(${currentInput}) `;
+            } else {
+                expression += `${fn}(${currentInput}) `;
+            }
+            currentInput = '0';
+            updateDisplay();
+        }
+
+        function toggleSign() {
+            playBeep(450);
+            if (currentInput === '0' || currentInput === 'Error') return;
+            if (currentInput.startsWith('-')) {
+                currentInput = currentInput.slice(1);
+            } else {
+                currentInput = '-' + currentInput;
+            }
+            updateDisplay();
+        }
+
+        function backspace() {
+            playBeep(400);
+            if (currentInput === 'Error') {
+                clearAll();
+                return;
+            }
+            if (currentInput.length > 1) {
+                currentInput = currentInput.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        function clearAll() {
+            playBeep(300);
+            currentInput = '0';
+            expression = '';
+            updateDisplay();
+        }
+
+        // Mathematical Evaluator logic
+        function calculate() {
+            playBeep(800);
+            if (currentInput === 'Error') return;
+
+            let fullExpr = expression + currentInput;
+            let rawExpr = fullExpr;
+
+            // Normalize and parse mathematical terms
+            try {
+                let parseExpr = fullExpr
+                    .replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/π/g, 'Math.PI')
+                    .replace(/\be\b/g, 'Math.E')
+                    .replace(/\^/g, '**');
+
+                // Scientific functions replacement
+                parseExpr = parseExpr.replace(/sin\(([^)]+)\)/g, (_, val) => {
+                    let rad = angleUnit === 'DEG' ? (eval(val) * Math.PI) / 180 : eval(val);
+                    return `Math.sin(${rad})`;
+                });
+                parseExpr = parseExpr.replace(/cos\(([^)]+)\)/g, (_, val) => {
+                    let rad = angleUnit === 'DEG' ? (eval(val) * Math.PI) / 180 : eval(val);
+                    return `Math.cos(${rad})`;
+                });
+                parseExpr = parseExpr.replace(/tan\(([^)]+)\)/g, (_, val) => {
+                    let rad = angleUnit === 'DEG' ? (eval(val) * Math.PI) / 180 : eval(val);
+                    return `Math.tan(${rad})`;
+                });
+                parseExpr = parseExpr.replace(/log\(([^)]+)\)/g, 'Math.log10($1)');
+                parseExpr = parseExpr.replace(/ln\(([^)]+)\)/g, 'Math.log($1)');
+                parseExpr = parseExpr.replace(/sqrt\(([^)]+)\)/g, 'Math.sqrt($1)');
+                parseExpr = parseExpr.replace(/fact\(([^)]+)\)/g, (_, val) => `factorial(${val})`);
+
+                // Helper factorial function in evaluation scope
+                window.factorial = function(n) {
+                    n = Math.floor(n);
+                    if (n < 0) return NaN;
+                    if (n === 0 || n === 1) return 1;
+                    let result = 1;
+                    for (let i = 2; i <= n; i++) result *= i;
+                    return result;
+                };
+
+                // Safe Evaluate
+                let result = eval(parseExpr);
+
+                if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+                    // Round extremely small floating inaccuracies
+                    result = parseFloat(result.toFixed(10)).toString();
+                    
+                    // Add to history
+                    addHistory(rawExpr, result);
+
+                    currentInput = result;
+                    expression = '';
+                } else {
+                    currentInput = 'Error';
+                }
+            } catch (err) {
+                currentInput = 'Error';
+            }
+
+            updateDisplay();
+        }
+
+        // Memory Functions
+        function memoryClear() {
+            playBeep(350);
+            memory = 0;
+            updateMemoryUI();
+        }
+        function memoryRecall() {
+            playBeep(600);
+            currentInput = memory.toString();
+            updateDisplay();
+        }
+        function memoryAdd() {
+            playBeep(600);
+            memory += parseFloat(currentInput) || 0;
+            updateMemoryUI();
+        }
+        function memorySubtract() {
+            playBeep(600);
+            memory -= parseFloat(currentInput) || 0;
+            updateMemoryUI();
+        }
+        function updateMemoryUI() {
+            const ind = document.getElementById('memory-indicator');
+            if (memory !== 0) {
+                ind.textContent = `MEM: ${memory}`;
+                ind.classList.add('text-blue-500', 'font-bold');
+            } else {
+                ind.textContent = 'MEM: OFF';
+                ind.classList.remove('text-blue-500', 'font-bold');
+            }
+        }
+
+        // History Management
+        function addHistory(expr, result) {
+            history.unshift({ expr, result });
+            if (history.length > 30) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const listHtml = history.map((item, idx) => `
+                <div onclick="useHistoryItem(${idx})" class="p-2.5 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors text-right border border-transparent hover:border-slate-300/40 dark:hover:border-slate-700/40">
+                    <div class="text-xs text-slate-400 font-mono truncate">${item.expr}</div>
+                    <div class="text-base font-bold text-slate-700 dark:text-slate-200 font-mono">= ${item.result}</div>
+                </div>
+            `).join('');
+
+            const placeholder = '<div class="text-center text-xs text-slate-400 dark:text-slate-600 py-8">No history yet</div>';
+            
+            document.getElementById('history-list').innerHTML = history.length ? listHtml : placeholder;
+            document.getElementById('mobile-history-list').innerHTML = history.length ? listHtml : placeholder;
+        }
+
+        function useHistoryItem(index) {
+            playBeep(650);
+            currentInput = history[index].result;
+            updateDisplay();
+            // Close mobile drawer if open
+            document.getElementById('mobile-history-drawer').classList.add('translate-x-full');
+            document.getElementById('mobile-drawer-overlay').classList.add('hidden');
+        }
+
+        function clearHistory() {
+            playBeep(300);
+            history = [];
+            renderHistory();
+        }
+
+        function toggleHistoryDrawer() {
+            const drawer = document.getElementById('mobile-history-drawer');
+            const overlay = document.getElementById('mobile-drawer-overlay');
+            drawer.classList.toggle('translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        // Scientific panel toggle
+        function toggleScientific() {
+            isScientificOpen = !isScientificOpen;
+            const grid = document.getElementById('scientific-grid');
+            const label = document.getElementById('scientific-toggle-label');
+            
+            if (isScientificOpen) {
+                grid.classList.remove('hidden');
+                label.textContent = 'Standard';
+            } else {
+                grid.classList.add('hidden');
+                label.textContent = 'Scientific';
+            }
+        }
+
+        function toggleAngleUnit() {
+            angleUnit = angleUnit === 'DEG' ? 'RAD' : 'DEG';
+            document.getElementById('angle-unit-btn').textContent = angleUnit;
+        }
+
+        // Switch main views (Calculator vs Unit Converter)
+        function switchMainTab(tab) {
+            playBeep(500);
+            const calcSec = document.getElementById('calculator-section');
+            const convSec = document.getElementById('converter-section');
+            const calcBtn = document.getElementById('mode-calc-btn');
+            const convBtn = document.getElementById('mode-converter-btn');
+
+            if (tab === 'calc') {
+                calcSec.classList.remove('hidden');
+                convSec.classList.add('hidden');
+                calcBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 text-white shadow-sm transition-all flex items-center gap-1.5";
+                convBtn.className = "px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all flex items-center gap-1.5";
+            } else {
+                calcSec.classList.add('hidden');
+                convSec.classList.remove('hidden');
+                convBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 text-white shadow-sm transition-all flex items-center gap-1.5";
+                calcBtn.className = "px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all flex items-center gap-1.5";
+                initConverter();
+            }
+        }
+
+        // Converter Logic
+        function selectConverterCategory(cat) {
+            currentConverterCat = cat;
+            document.querySelectorAll('.cat-tab').forEach(b => {
+                b.className = 'cat-tab py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900';
+            });
+            const activeTab = document.getElementById(`cat-${cat}`);
+            activeTab.className = 'cat-tab py-2 rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-semibold';
+            
+            populateConverterUnits();
+        }
+
+        function populateConverterUnits() {
+            const fromSelect = document.getElementById('converter-from-unit');
+            const toSelect = document.getElementById('converter-to-unit');
+            const units = unitData[currentConverterCat].units;
+
+            fromSelect.innerHTML = units.map(u => `<option value="${u}">${u}</option>`).join('');
+            toSelect.innerHTML = units.map(u => `<option value="${u}">${u}</option>`).join('');
+
+            if (units.length > 1) {
+                toSelect.selectedIndex = 1;
+            }
+
+            convertUnits();
+        }
+
+        function convertUnits() {
+            const fromVal = parseFloat(document.getElementById('converter-from-input').value) || 0;
+            const fromUnit = document.getElementById('converter-from-unit').value;
+            const toUnit = document.getElementById('converter-to-unit').value;
+            const outInput = document.getElementById('converter-to-input');
+
+            if (currentConverterCat === 'temp') {
+                outInput.value = convertTemperature(fromVal, fromUnit, toUnit).toFixed(4).replace(/\.?0+$/, '');
+                return;
+            }
+
+            const rates = unitData[currentConverterCat].rates;
+            const baseValue = fromVal / rates[fromUnit];
+            const result = baseValue * rates[toUnit];
+            
+            outInput.value = parseFloat(result.toFixed(6)).toString();
+        }
+
+        function convertTemperature(val, from, to) {
+            let celsius = val;
+            if (from === 'Fahrenheit (°F)') celsius = (val - 32) * 5 / 9;
+            if (from === 'Kelvin (K)') celsius = val - 273.15;
+
+            if (to === 'Celsius (°C)') return celsius;
+            if (to === 'Fahrenheit (°F)') return (celsius * 9 / 5) + 32;
+            if (to === 'Kelvin (K)') return celsius + 273.15;
+            return celsius;
+        }
+
+        function swapConverterUnits() {
+            playBeep(600);
+            const fromSelect = document.getElementById('converter-from-unit');
+            const toSelect = document.getElementById('converter-to-unit');
+            const temp = fromSelect.value;
+            fromSelect.value = toSelect.value;
+            toSelect.value = temp;
+            convertUnits();
+        }
+
+        function initConverter() {
+            selectConverterCategory('length');
+        }
+
+        // Copy to clipboard fallback
+        function copyToClipboard() {
+            playBeep(900);
+            const textToCopy = currentInput;
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = textToCopy;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            const toast = document.getElementById('copy-toast');
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 1500);
+        }
+
+        // Theme Switcher
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        // Global Keyboard Event Support
+        window.addEventListener('keydown', (e) => {
+            // Ignore if input focused in converter
+            if (document.activeElement.tagName === 'INPUT') return;
+
+            if (e.key >= '0' && e.key <= '9') appendValue(e.key);
+            if (e.key === '.') appendValue('.');
+            if (e.key === '+') appendOperator('+');
+            if (e.key === '-') appendOperator('-');
+            if (e.key === '*') appendOperator('×');
+            if (e.key === '/') {
+                e.preventDefault();
+                appendOperator('÷');
+            }
+            if (e.key === '%') appendOperator('%');
+            if (e.key === '(' || e.key === ')') appendParenthesis();
+            if (e.key === 'Enter' || e.key === '=') {
+                e.preventDefault();
+                calculate();
+            }
+            if (e.key === 'Backspace') backspace();
+            if (e.key === 'Escape') clearAll();
+        });
+
+        // Initialize state
+        updateDisplay();
+    </script>
+</body>
+</html>
